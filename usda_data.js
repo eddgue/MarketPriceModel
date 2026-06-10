@@ -1,0 +1,1 @@
+window.USDA_DATA={};

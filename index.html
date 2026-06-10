@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XL Roma index-reset pricing backtest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+--paper:#FAFAF7; --ink:#1C2520; --field:#2E5E4E; --roma:#C8442C; --wire:#8A8D86;
+--line:#E2E2DC; --soft:#F1F1EB; --mute:#6B6E67;
+--mono:'IBM Plex Mono',ui-monospace,monospace; --sans:'Archivo',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.65}
+.wrap{max-width:960px;margin:0 auto;padding:40px 22px 64px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-size:clamp(26px,4.2vw,38px);font-weight:700;letter-spacing:-.01em;line-height:1.12;margin:10px 0 8px}
+.spec{font-family:var(--mono);font-size:12.5px;color:var(--field);margin-bottom:18px}
+.strip{display:flex;gap:0;overflow-x:auto;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);padding:10px 0;margin-bottom:34px}
+.chip{font-family:var(--mono);font-size:12px;white-space:nowrap;padding:0 14px;border-right:1px dashed var(--line)}
+.chip:last-child{border-right:none}
+.chip b{font-weight:500;display:block;color:var(--mute);font-size:10.5px;letter-spacing:.08em}
+.panel{background:#fff;border:1px solid var(--line);border-radius:8px;padding:26px 26px 22px;margin-bottom:46px}
+.bandrow{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+.lbl{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);display:block;margin-bottom:5px}
+.ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(146px,1fr));gap:14px;margin-bottom:14px}
+select,input[type=number],input[type=date],textarea{width:100%;font-family:var(--mono);font-size:13.5px;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+input[type=range]{flex:1;accent-color:var(--field)}
+select:focus-visible,input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--field);outline-offset:1px}
+.check{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--mute);margin-bottom:20px}
+.check input{accent-color:var(--field);width:15px;height:15px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-family:var(--mono);font-size:11.5px;color:var(--mute);margin-bottom:8px}
+.lg{display:flex;align-items:center;gap:6px}
+.sw{width:16px;height:0;display:inline-block}
+.chartbox{position:relative;width:100%;height:360px;margin-bottom:6px}
+.fine{font-size:12.5px;color:var(--mute);margin-bottom:22px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px;margin-bottom:26px}
+.card{background:var(--soft);border-radius:6px;padding:14px 16px}
+.cardv{font-family:var(--mono);font-size:22px;font-weight:500;line-height:1.25}
+.cards small,.spendcard small{display:block;font-size:12px;color:var(--mute);margin-top:3px}
+.sect{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink);border-bottom:1px solid var(--ink);padding-bottom:6px;margin-bottom:16px}
+.spendgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(146px,1fr));gap:14px;margin-bottom:14px}
+.spendcard{background:var(--soft);border-radius:6px;padding:16px 18px;margin-bottom:22px}
+.brow{display:flex;justify-content:space-between;gap:10px;font-family:var(--mono);font-size:12.5px;padding:6px 0;border-top:1px dashed var(--line)}
+.brow span:first-child{color:var(--mute)}
+.save{color:var(--field)} .prem{color:var(--roma)}
+.pastebar{display:flex;gap:10px;margin-top:10px;align-items:center;flex-wrap:wrap}
+button{font-family:var(--mono);font-size:13px;color:var(--ink);background:#fff;border:1px solid var(--ink);border-radius:6px;padding:8px 16px;cursor:pointer;transition:background .12s}
+button:hover{background:var(--soft)}
+.err{font-family:var(--mono);font-size:12px;color:var(--roma)}
+.ctl>div,.spendgrid>div{display:flex;flex-direction:column;justify-content:flex-end}
+.lblrow{display:flex;align-items:center;margin-bottom:5px}
+.lblrow .lbl{margin-bottom:0}
+.info{font-family:var(--mono);font-size:10px;text-transform:none;width:15px;height:15px;min-width:15px;border:1px solid var(--mute);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:var(--mute);text-decoration:none;margin-left:7px;position:relative}
+.info:hover,.info:focus-visible{color:var(--field);border-color:var(--field)}
+.info::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:-8px;background:var(--ink);color:var(--paper);font-size:11.5px;font-weight:400;letter-spacing:0;line-height:1.5;padding:7px 10px;border-radius:6px;width:max-content;max-width:220px;white-space:normal;opacity:0;pointer-events:none;transition:opacity .12s;z-index:5}
+.info:hover::after,.info:focus-visible::after{opacity:1}
+.term{scroll-margin-top:18px}
+.term:target{color:var(--roma)}
+body{overflow-x:hidden}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+@media (max-width:640px){.info::after{display:none}}
+.guide{display:grid;grid-template-columns:200px 1fr;gap:8px 28px;align-items:baseline}
+.term{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--field);padding-top:2px}
+.guide p{font-size:15px;padding-bottom:18px;border-bottom:1px solid var(--line);margin-bottom:18px}
+.guide p:last-child{border-bottom:none}
+footer{margin-top:44px;border-top:1px solid var(--ink);padding-top:14px;font-family:var(--mono);font-size:12px;color:var(--mute);line-height:1.8}
+@media (max-width:640px){.guide{grid-template-columns:1fr;gap:2px 0}.guide p{margin-bottom:14px;padding-bottom:14px}.panel{padding:18px 16px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="eyebrow"><span>USDA FVWTRDS &middot; My Market News report 1662</span><span>Window: Dec 9 2025 &ndash; Jun 9 2026</span></div>
+<h1><span id="commName">XL Roma tomatoes</span> &middot; index-reset pricing backtest</h1>
+<div class="spec" id="specLine">REF_SERIES: Tomatoes, plum type &middot; Roma 25 lb cartons loose &middot; extra large &middot; mid-mostly &middot; Mexico crossings through Texas, Nogales fallback &middot; Monday prices, Tuesday release</div>
+<div style="display:flex;align-items:center;gap:12px;margin:14px 0 4px;">
+<label class="lbl" for="comm" style="margin:0;white-space:nowrap;">Commodity</label>
+<select id="comm" style="flex:0 1 320px;"></select>
+<a class="info" href="#g-live" data-tip="Profiles with locked spec lines. Series load from usda_data.js, embedded anchors, or paste." aria-label="About commodities and data sources">i</a>
+</div>
+
+<div class="strip" id="strip" aria-label="Verified USDA weekly prints across the season">
+<span class="chip"><b>NOV 11</b>17.45</span><span class="chip"><b>DEC 2</b>15.45</span><span class="chip"><b>JAN 13</b>11.45</span><span class="chip"><b>JAN 20</b>16.95</span><span class="chip"><b>FEB 17</b>20.95</span><span class="chip"><b>FEB 24</b>33.95</span><span class="chip"><b>MAR 3</b>44.95</span><span class="chip"><b>APR 28</b>52.95</span><span class="chip"><b>MAY 12</b>26.95</span><span class="chip"><b>MAY 19</b>27.95</span><span class="chip"><b>JUN 2</b>13.95</span><span class="chip"><b>JUN 9</b>15.45</span>
+</div>
+
+<div class="panel">
+<div class="bandrow">
+<span class="lbl" style="margin:0;white-space:nowrap;">Band &plusmn;%</span><a class="info" href="#g-band" data-tip="Corridor around the base. Two weeks outside triggers an interim, two back inside reverts." aria-label="About the band">i</a>
+<input type="range" id="band" min="5" max="30" step="1" value="15" aria-label="Normalization band percent">
+<span id="bandOut" style="font-family:var(--mono);font-size:14px;font-weight:500;min-width:42px;text-align:right;">15%</span>
+</div>
+<div class="ctl">
+<div><div class="lblrow"><label class="lbl" for="reset">Reset every (wks)</label><a class="info" href="#g-reset" data-tip="Scheduled base recalculation cadence, independent of interim activity." aria-label="About reset cadence">i</a></div><select id="reset"><option>4</option><option>8</option><option>12</option><option selected>13</option><option>26</option></select></div>
+<div><div class="lblrow"><label class="lbl" for="wr">Reset trailing (wks)</label><a class="info" href="#g-trail-reset" data-tip="Lookback average that sets each new base." aria-label="About reset trailing">i</a></div><select id="wr"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></div>
+<div><div class="lblrow"><label class="lbl" for="wi">Interim trailing (wks)</label><a class="info" href="#g-trail-interim" data-tip="Lookback average that prices a triggered interim." aria-label="About interim trailing">i</a></div><select id="wi"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></div>
+<div><div class="lblrow"><label class="lbl" for="cin">Trigger confirm (wks)</label><a class="info" href="#g-confirm" data-tip="Consecutive weeks outside the band that confirm a trigger or re-mark." aria-label="About trigger confirmation">i</a></div><select id="cin"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></div><div><div class="lblrow"><label class="lbl" for="cout">Revert confirm (wks)</label><a class="info" href="#g-confirm" data-tip="Consecutive weeks back inside the band that end an interim." aria-label="About revert confirmation">i</a></div><select id="cout"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></div><div><div class="lblrow"><label class="lbl" for="mode">Trigger rights</label><a class="info" href="#g-rights" data-tip="Bilateral fires both directions. Kroger optional fires only when it lowers the price." aria-label="About trigger rights">i</a></div><select id="mode"><option value="auto" selected>Automatic, bilateral</option><option value="opt">Kroger optional</option></select></div>
+<div><div class="lblrow"><label class="lbl" for="form">Discount form</label><a class="info" href="#g-discount" data-tip="Awarded bid off the reference, fixed dollars per carton or percent." aria-label="About discount form">i</a></div><select id="form"><option value="fix" selected>$ per carton off</option><option value="pct">% off reference</option></select></div>
+<div><div class="lblrow"><label class="lbl" for="disc">Discount value</label><a class="info" href="#g-discount" data-tip="The awarded discount amount, applied per the selected form." aria-label="About discount value">i</a></div><input type="number" id="disc" value="0.10" step="0.01" min="0"></div>
+</div>
+<div class="check"><input type="checkbox" id="remark" checked><label for="remark">Re-mark interim while the market runs past it</label><a class="info" href="#g-remark" data-tip="Re-prices an active interim when the market breaches the band against it." aria-label="About re-mark">i</a></div>
+
+<div class="legend">
+<span class="lg"><span style="width:8px;height:8px;border-radius:50%;background:var(--ink);display:inline-block;"></span>USDA print</span>
+<span class="lg"><span class="sw" style="border-top:2px dashed var(--wire);"></span>market (fills est.)</span>
+<span class="lg"><span class="sw" style="border-top:3px solid var(--field);"></span>contract base</span>
+<span class="lg"><span class="sw" style="border-top:3px solid var(--roma);"></span>contract interim</span>
+<span class="lg"><span style="width:16px;height:10px;background:rgba(46,94,78,0.12);display:inline-block;border-radius:2px;"></span>band</span>
+<span class="lg"><span style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:9px solid var(--roma);display:inline-block;"></span>trigger</span>
+<span class="lg"><span style="width:7px;height:7px;background:var(--roma);transform:rotate(45deg);display:inline-block;"></span>re-mark</span>
+<span class="lg"><span style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:9px solid var(--field);display:inline-block;"></span>revert</span>
+<span class="lg"><span class="sw" style="border-top:1px solid var(--wire);"></span>daily mid</span>
+</div>
+<p id="nodata" class="fine" style="display:none;color:var(--roma);margin:0 0 8px;">No series loaded for this commodity. Run usda_refresh.py to generate usda_data.js, or paste weekly prints below.</p>
+<div class="chartbox"><canvas id="ch" role="img" aria-label="Weekly extra large Roma market price versus contract price, December 2025 to June 2026, with normalization band, interim periods and reset markers.">Weekly XL Roma market and contract price backtest.</canvas></div>
+<p class="fine">Dots are USDA weekly prints. Segments between dots are linear fills pending the full series. Dashed verticals are scheduled resets.</p>
+
+<div class="cards">
+<div class="card"><span class="lbl">Avg contract cost</span><div class="cardv" id="mAvgC"></div><small>per carton per week</small></div>
+<div class="card"><span class="lbl">Avg market less discount</span><div class="cardv" id="mAvgP"></div><small>pure pass-through</small></div>
+<div class="card"><span class="lbl">Gap vs pass-through <a class="info" href="#g-metrics" data-tip="Contract cost vs market less discount. Negative ran under spot net." aria-label="About this metric">i</a></span><div class="cardv" id="mGap"></div><small id="mGapTot"></small></div>
+<div class="card"><span class="lbl">Weeks on interim</span><div class="cardv" id="mInt"></div><small id="mAct"></small></div>
+</div>
+
+<div class="sect">Spend over selected range <a class="info" href="#g-spend" data-tip="Volume-scaled savings or premium over the selected weeks, split by base period." aria-label="About spend over range">i</a></div>
+<div class="spendgrid">
+<div><label class="lbl" for="vol">Cases bought weekly</label><input type="number" id="vol" value="1000" min="0" step="50"></div>
+<div><label class="lbl" for="from">From</label><select id="from"></select></div>
+<div><label class="lbl" for="to">To</label><select id="to"></select></div>
+</div>
+<div class="spendcard">
+<span class="lbl">Contract spend</span>
+<div class="cardv" id="spendV"></div>
+<small id="saveV" style="font-size:13px;"></small>
+<div id="baseRows" style="margin-top:12px;"></div>
+</div>
+
+<div class="sect">Replace fills with the full USDA series <a class="info" href="#g-fills" data-tip="12 of 31 weeks are USDA prints. Paste the full series to replace fills." aria-label="About replacing fills">i</a></div>
+<textarea id="paste" rows="2" placeholder="17.45, 16.78, 16.12, ... oldest first, 31 prints"></textarea>
+<div class="pastebar">
+<button id="run">Run prints</button>
+<button id="samp">Restore source</button>
+<span class="err" id="err"></span>
+</div>
+<p class="fine" style="margin-top:8px;">First 4 prints seed the opening base, so trailing selections of 5 or 6 clamp to 4 at the opening reset only. Paste 31 for the full window.</p>
+<div class="sect" style="margin-top:22px;">Daily overlay <a class="info" href="#g-daily" data-tip="Daily mid-mostly prints drawn behind the weekly series for context. The engine ignores them." aria-label="About the daily overlay">i</a></div>
+<div class="spendgrid">
+<div><div class="lblrow"><label class="lbl" for="anchor">First issue date</label></div><input type="date" id="anchor" value="2025-12-09"></div>
+</div>
+<textarea id="dpaste" rows="2" placeholder="2026-06-03 15.45 (one per line, date then daily mid)"></textarea>
+<div class="pastebar">
+<button id="drun">Apply dailies</button>
+<button id="dclear">Clear dailies</button>
+<span class="err" id="derr"></span>
+</div>
+<p class="fine" style="margin-top:8px;">Same spec as the weekly series: XL Roma, 25 lb loose, mid-mostly, Texas crossings. Source: USDA daily National FOB Review and Tomato Fax Report. Context layer only; triggers and resets run on weekly prints.</p>
+</div>
+
+<div class="sect">Component guide</div>
+<div class="guide">
+<span class="term" id="g-reference">Market reference</span>
+<p>The series is the USDA National Shipping Point Trends weekly print, report code FVWTRDS, My Market News report 1662: Roma plum type, 25 lb cartons loose, extra large, Mexico crossings through Texas, with Nogales as the fallback district when Texas is not quoted. Each weekly value is the midpoint of the printed "mostly" range. Single-value prints stand as printed. The issue carries Monday spot prices and releases Tuesday, slipping a day on federal holidays. A print is the published observation itself, the quote USDA puts on the wire for that date; mid-mostly is the calculation this model applies to it.</p>
+
+<span class="term" id="g-band">Normalization band</span>
+<p>The corridor around the active base reference, set as a percentage in either direction. A weekly print outside the band starts the trigger clock. Two consecutive weeks outside confirm an interim adjustment, and two consecutive weeks back inside confirm reversion to base. Tight bands trigger on noise. Wide bands sit silent through real moves. A working calibration is about twice the reference's average absolute weekly move.</p>
+
+<span class="term" id="g-reset">Reset every</span>
+<p>How often the base reference and base price recalculate on schedule, regardless of interim activity in the prior cycle. Shorter cadence keeps the base honest at the cost of admin churn. Longer cadence stabilizes cost and raises the odds a reset lands mid-spike, locking a distorted base in place for a full cycle. The March 10 reset in this window does exactly that.</p>
+
+<span class="term" id="g-trail-reset">Reset trailing</span>
+<p>The lookback window that sets each new base, averaged over the most recent reported weeks. Longer windows smooth single-print noise but drag stale levels into the new base. A setting of 1 marks the base to the last single print.</p>
+
+<span class="term" id="g-trail-interim">Interim trailing</span>
+<p>The lookback that prices an interim adjustment once a trigger confirms. Short windows track the exact move that fired the trigger. Longer windows blend in pre-move weeks and under-correct in fast markets. The default of 2 uses the two confirming prints.</p>
+
+<span class="term" id="g-rights">Trigger rights</span>
+<p>Automatic, bilateral fires the interim whenever the condition confirms, in either direction, for either party. Kroger optional reproduces the draft contract language: adjustments fire only when they lower the buyer's price, leaving the supplier holding upside moves until the next scheduled reset. Toggling between the two prices that option against real market data.</p>
+
+<span class="term" id="g-discount">Discount form</span>
+<p>The awarded bid, taken off the reference as fixed dollars per carton or as a percentage. Fixed dollars keep bids comparable across market levels and keep supplier margin legible in cents. A percentage scales the discount with the market, which pushes suppliers to price spike insurance into the bid.</p>
+
+<span class="term" id="g-remark">Re-mark</span>
+<p>With re-mark on, an active interim re-prices when the market breaches the band measured against the interim reference for two consecutive weeks. Off reproduces the draft: a frozen interim that a second-leg move runs away from, recreating the original lag one tier up.</p>
+
+<span class="term" id="g-confirm">Confirmation and lag</span>
+<p>Trigger confirm sets how many consecutive reported weeks outside the band confirm an interim adjustment, and the same count governs re-marks. Revert confirm sets the consecutive weeks back inside that end one. Short confirmation tracks the market tightly and churns on noise. Long confirmation filters noise and lags real moves, shifting cost to whoever holds the lag. Keep interim trailing at or below trigger confirm so the interim prices off breach weeks rather than the calm before them. Unequal entry and exit create drift toward one party, so set asymmetry deliberately or keep them equal. Effectivity stays fixed at one week after confirmation.</p>
+
+<span class="term" id="g-chart">Reading the chart</span>
+<p>The gray dashed line is the weekly market print. Dots mark verified USDA weeks; segments between dots are linear fills pending the complete series. The stepped line is the contract price: green while on base, red while on an interim adjustment. The shaded corridor is the normalization band around the active base, and dashed verticals mark scheduled resets. Red triangles mark the week a trigger takes effect, red diamonds mark re-marks, and green down-triangles mark reversion to base. Confirmations overridden by a same-week scheduled reset never price an invoice, so they draw no marker and do not count.</p>
+
+<span class="term" id="g-daily">Daily overlay</span>
+<p>USDA also publishes daily shipping point prices for the same spec in the National FOB Review and the Tomato Fax Report. The overlay draws those daily mid-mostly values as a thin line behind the weekly series to show real intra-week fluctuation. It is context only: the band, confirmation counts and resets all run on the weekly print, because a daily clock would churn adjustments and invite gaming of single prints.</p>
+<span class="term" id="g-metrics">Metric cards</span>
+<p>Averages run over the full window at one carton per week. Gap vs pass-through compares contract cost to market less the awarded discount: negative means the contract ran under spot net, positive means it ran over.</p>
+
+<span class="term" id="g-spend">Spend over range</span>
+<p>Cases bought weekly scales the model to dollars. From and To scope the calculation to any stretch of the window. Positive is savings against market less discount, negative is premium, and the rows beneath split the result by base period, so each reset cycle answers for its own economics at the base it carried.</p>
+
+<span class="term" id="g-live">Semi-live data</span>
+<p>USDA MARS API is free with registration. The companion script usda_refresh.py pulls each configured series, computes mid-mostly on the locked spec, and writes usda_data.js next to this file; the app loads it automatically on open. Browsers block a local file from calling the API directly, so the script does the fetching. My Market News holds the full shipping point history, which covers multi-year band calibration per commodity. Run the script each Tuesday after the issue posts and the evaluation stays at most a week behind the market.</p>
+<span class="term" id="g-fills">Replacing fills</span>
+<p>Twelve of the 31 weekly values are USDA prints; the rest are linear fills. Pull the complete weekly history from My Market News report 1662 filtered to Tomatoes, Plum Type, compute mid-mostly per week on the same spec, and paste 31 values oldest first. The first 4 seed the opening base and every dot becomes a verified print.</p>
+</div>
+
+<footer>
+Source: USDA AMS Specialty Crops Market News, National Shipping Point Trends (FVWTRDS), mymarketnews.ams.usda.gov/viewReport/1662. Verified prints cross-checked against the daily Tomato Fax Report and National FOB Review. Chart and fonts load from public CDNs and require an internet connection.
+</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="usda_data.js"></script>
+<script>
+const SEED=4;
+const SAMPLE=[17.45,16.78,16.12,15.45,14.78,14.12,13.45,12.78,12.12,11.45,16.95,17.95,18.95,19.95,20.95,33.95,44.95,45.95,46.95,47.95,48.95,49.95,50.95,51.95,52.95,39.95,26.95,27.95,20.95,13.95,15.45];
+const SAMPLE_REAL=[0,0,0,0,0,1,1,0,0,0,1,1,1,0,0,0,0,0,0,0,1,0,1,1,0,1,1];
+let DATA=SAMPLE.slice(),REALF=SAMPLE_REAL.slice(),custom=false;
+let DAILY=[];
+let FLAGS=[],RESETW=[],ROWS=[],LBLS=[],LASTN=0;
+const PROFILES={
+xl_roma:{label:'XL Roma tomatoes',spec:'Tomatoes, plum type \u00B7 Roma 25 lb cartons loose \u00B7 extra large \u00B7 mid-mostly \u00B7 Mexico crossings through Texas, Nogales fallback'},
+round_vine:{label:'Round tomatoes, vine ripe 5x6',spec:'Tomatoes \u00B7 vine ripes, cartons 2 layer 5x6 \u00B7 mid-mostly \u00B7 Mexico crossings through Texas'},
+grape:{label:'Grape tomatoes, 20 lb loose',spec:'Tomatoes, grape type \u00B7 20 lb cartons loose \u00B7 mid-mostly \u00B7 Mexico crossings through Texas'},
+limes:{label:'Limes, seedless 200s',spec:'Limes \u00B7 40 lb cartons seedless 200s \u00B7 mid-mostly \u00B7 Mexico crossings through Texas'},
+avocado:{label:'Avocados, Hass 48s',spec:'Avocados \u00B7 cartons 2 layer Hass 48s \u00B7 mid-mostly \u00B7 Mexico crossings through Texas'},
+cukes:{label:'Cucumbers, medium',spec:'Cucumbers \u00B7 1 1/9 bushel cartons medium \u00B7 mid-mostly \u00B7 Mexico crossings through Texas'}
+};
+let CURR='xl_roma';
+function loadCommodity(k){
+CURR=k;
+const prof=PROFILES[k]||{label:k,spec:'see usda_refresh.py profile'};
+const ext=(typeof USDA_DATA!=='undefined'&&USDA_DATA[k])?USDA_DATA[k]:null;
+document.getElementById('commName').textContent=prof.label;
+document.getElementById('specLine').textContent='REF_SERIES: '+prof.spec+' \u00B7 Monday prices, Tuesday release';
+document.getElementById('strip').style.display=(k==='xl_roma')?'':'none';
+document.getElementById('anchor').value=(ext&&ext.anchor)?ext.anchor:'2025-12-09';
+custom=false;
+if(ext&&ext.weekly&&ext.weekly.length>=SEED+4){
+DATA=ext.weekly.slice();
+REALF=(ext.real&&ext.real.length===DATA.length-SEED)?ext.real.slice():DATA.slice(SEED).map(()=>1);
+DAILY=(ext.daily||[]).map(o=>({t:new Date(o.d+'T00:00:00').getTime(),v:o.v}));
+}else if(k==='xl_roma'){
+DATA=SAMPLE.slice();REALF=SAMPLE_REAL.slice();
+DAILY=[{t:new Date(2026,5,3).getTime(),v:15.45}];
+}else{DATA=[];REALF=[];DAILY=[];}
+document.getElementById('err').textContent='';
+document.getElementById('derr').textContent='';
+LASTN=0;recompute();
+}
+const FIELD='#2E5E4E',ROMA='#C8442C',WIRE='#8A8D86',INK='#1C2520',MUTE='#6B6E67';
+function simulate(all,p){
+const N=all.length-SEED,LAG=1;
+const trailEnd=(d,w)=>{const e=SEED-1+d,s=Math.max(0,e-w+1),a=all.slice(s,e+1);return a.reduce((x,y)=>x+y,0)/a.length;};
+const priceOf=r=>p.form==='pct'?r*(1-p.disc/100):Math.max(0,r-p.disc);
+let baseRef=trailEnd(0,p.wR),basePrice=priceOf(baseRef),interim=null,pending=null;
+let outCount=0,outSide=0,inCount=0,remOut=0,trig=0,rem=0,rev=0,resets=0,intW=0,per=0;
+const rows=[],resetWeeks=[],events=[];
+for(let t=1;t<=N;t++){
+const m=all[SEED-1+t];
+let applied=null;
+if(pending&&pending.week===t){
+if(pending.type==='revert')interim=null;
+else{interim={ref:pending.ref,price:priceOf(pending.ref)};}
+applied=pending.type;pending=null;}
+const isReset=t!==1&&((t-1)%p.R===0);
+if(isReset){baseRef=trailEnd(t-1,p.wR);basePrice=priceOf(baseRef);interim=null;pending=null;applied=null;outCount=0;inCount=0;remOut=0;outSide=0;resets++;resetWeeks.push(t);per++;}
+if(applied){if(applied==='interim')trig++;else if(applied==='remark')rem++;else rev++;events.push({i:t-1,type:applied});}
+const active=interim?interim.price:basePrice;
+if(interim)intW++;
+const dev=m/baseRef-1,outside=Math.abs(dev)>p.band/100,side=dev>0?1:-1;
+if(outside){outCount=(outSide===side)?outCount+1:1;outSide=side;inCount=0;}else{inCount++;outCount=0;outSide=0;}
+if(!interim&&!pending){
+if(outCount>=p.cIn){const ref=trailEnd(t,p.wI),px=priceOf(ref);
+const fire=p.mode==='auto'?true:(px<basePrice-1e-9);
+if(fire){pending={week:t+LAG,type:'interim',ref:ref};outCount=0;}}
+}else if(interim&&!pending){
+if(inCount>=p.cOut){pending={week:t+LAG,type:'revert'};}
+else if(p.remark){const devI=m/interim.ref-1;
+if(Math.abs(devI)>p.band/100)remOut++;else remOut=0;
+if(remOut>=p.cIn){const ref=trailEnd(t,p.wI),px=priceOf(ref);
+const fire=p.mode==='auto'?true:(px<interim.price-1e-9);
+if(fire){pending={week:t+LAG,type:'remark',ref:ref};remOut=0;}}}}
+rows.push({t:t,m:m,base:baseRef,active:active,intFlag:!!interim,per:per,pass:priceOf(m)});
+}
+const act=rows.map(r=>r.active),pass=rows.map(r=>r.pass);
+const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
+return{rows:rows,resetWeeks:resetWeeks,events:events,avgC:avg(act),avgP:avg(pass),trig:trig,rem:rem,rev:rev,resets:resets,intW:intW,N:N};
+}
+function params(){return{band:+document.getElementById('band').value,R:+document.getElementById('reset').value,wR:+document.getElementById('wr').value,wI:+document.getElementById('wi').value,form:document.getElementById('form').value,disc:+document.getElementById('disc').value,mode:document.getElementById('mode').value,cIn:+document.getElementById('cin').value,cOut:+document.getElementById('cout').value,remark:document.getElementById('remark').checked};}
+function anchorDate(){const v=document.getElementById('anchor').value;const d=v?new Date(v+'T00:00:00'):new Date(2025,11,9);return isNaN(d)?new Date(2025,11,9):d;}
+function labelsFor(n){const d0=anchorDate();return Array.from({length:n},(_,i)=>{const d=new Date(d0);d.setDate(d.getDate()+7*i);return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});});}
+function money(v){return '$'+Math.abs(Math.round(v)).toLocaleString();}
+function signedMoney(v){const r=Math.round(v);if(r===0)return '$0';return (r<0?'-':'+')+money(v);}
+const resetLines={id:'rl',afterDatasetsDraw(c){const{ctx,chartArea,scales}=c;ctx.save();ctx.strokeStyle='rgba(28,37,32,0.35)';ctx.setLineDash([3,4]);RESETW.forEach(t=>{const x=scales.x.getPixelForValue(t);ctx.beginPath();ctx.moveTo(x,chartArea.top);ctx.lineTo(x,chartArea.bottom);ctx.stroke();});ctx.restore();}};
+const chart=new Chart(document.getElementById('ch'),{type:'line',
+data:{labels:[],datasets:[
+{label:'band+',data:[],stepped:'before',borderWidth:0,pointRadius:0,fill:'+1',backgroundColor:'rgba(46,94,78,0.12)'},
+{label:'band-',data:[],stepped:'before',borderWidth:0,pointRadius:0,fill:false},
+{label:'Market print',data:[],borderColor:WIRE,borderDash:[5,4],borderWidth:1.5,fill:false,pointBackgroundColor:INK,pointBorderColor:INK,pointRadius:c=>custom?2:(REALF[c.dataIndex]?3.5:0)},
+{label:'Contract price',data:[],stepped:'before',borderWidth:2.5,pointRadius:0,fill:false,segment:{borderColor:c=>FLAGS[c.p1DataIndex]?ROMA:FIELD}},
+{label:'Trigger',data:[],showLine:false,pointStyle:'triangle',pointRadius:6,pointHoverRadius:7,pointBackgroundColor:ROMA,pointBorderColor:ROMA},
+{label:'Re-mark',data:[],showLine:false,pointStyle:'rectRot',pointRadius:5.5,pointHoverRadius:6.5,pointBackgroundColor:ROMA,pointBorderColor:ROMA},
+{label:'Revert',data:[],showLine:false,pointStyle:'triangle',pointRotation:180,pointRadius:6,pointHoverRadius:7,pointBackgroundColor:FIELD,pointBorderColor:FIELD},
+{label:'Daily mid',data:[],borderColor:WIRE,borderWidth:1,pointRadius:1.6,pointBackgroundColor:WIRE,pointBorderColor:WIRE,fill:false,order:10}
+]},
+options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'x',intersect:false},
+plugins:{legend:{display:false},tooltip:{filter:i=>i.datasetIndex>=2,callbacks:{label:c=>{if(c.datasetIndex===7){const d=new Date(anchorDate().getTime()+(c.parsed.x-1)*7*86400000);return 'Daily mid '+d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+': $'+c.parsed.y.toFixed(2);}let s=c.dataset.label+': $'+c.parsed.y.toFixed(2);if(c.datasetIndex===2&&!custom){s+=REALF[c.dataIndex]?' (USDA print)':' (est.)';}return s;}}}},
+scales:{x:{type:'linear',ticks:{autoSkip:true,maxTicksLimit:8,maxRotation:0,color:MUTE,font:{size:11,family:'IBM Plex Mono'},callback:v=>Number.isInteger(v)&&v>=1&&v<=LBLS.length?LBLS[v-1]:''},grid:{display:false}},
+y:{grace:'10%',ticks:{color:MUTE,font:{size:11,family:'IBM Plex Mono'},callback:v=>'$'+(+v).toFixed(0)},grid:{color:'rgba(28,37,32,0.07)'}}}},
+plugins:[resetLines]});
+function rebuildRange(n){
+const f=document.getElementById('from'),t=document.getElementById('to');
+f.innerHTML='';t.innerHTML='';
+LBLS.forEach((l,i)=>{const o1=document.createElement('option');o1.value=i;o1.textContent=l;f.appendChild(o1);const o2=document.createElement('option');o2.value=i;o2.textContent=l;t.appendChild(o2);});
+f.value=0;t.value=n-1;
+}
+function computeRange(){if(!ROWS.length)return;
+const vol=Math.max(0,+document.getElementById('vol').value||0);
+let a=+document.getElementById('from').value,b=+document.getElementById('to').value;
+const lo=Math.min(a,b),hi=Math.max(a,b);
+let spend=0,save=0;
+const perAgg={};
+for(let i=lo;i<=hi;i++){
+const r=ROWS[i];
+spend+=r.active*vol;
+save+=(r.pass-r.active)*vol;
+if(!perAgg[r.per])perAgg[r.per]={base:r.base,s:i,e:i,save:0,wks:0};
+perAgg[r.per].e=i;perAgg[r.per].save+=(r.pass-r.active)*vol;perAgg[r.per].wks++;
+}
+document.getElementById('spendV').textContent=money(spend);
+const sv=document.getElementById('saveV');
+sv.textContent=signedMoney(save)+(Math.round(save)===0?'':(save>0?' savings vs market less discount':' premium vs market less discount'));
+sv.className=save>0?'save':(save<0?'prem':'');
+const br=document.getElementById('baseRows');
+br.innerHTML='';
+Object.keys(perAgg).sort((x,y)=>x-y).forEach(k=>{
+const g=perAgg[k];
+const row=document.createElement('div');row.className='brow';
+const left=document.createElement('span');
+const span=g.s===g.e?LBLS[g.s]:LBLS[g.s]+' \u2013 '+LBLS[g.e];
+left.textContent='Base $'+g.base.toFixed(2)+' \u00B7 '+span+' \u00B7 '+g.wks+' wk'+(g.wks>1?'s':'');
+const right=document.createElement('span');
+right.textContent=signedMoney(g.save);
+right.className=g.save>0?'save':(g.save<0?'prem':'');
+row.appendChild(left);row.appendChild(right);br.appendChild(row);
+});
+}
+function recompute(){
+const ready=DATA.length>=SEED+4;
+document.getElementById('nodata').style.display=ready?'none':'block';
+if(!ready){
+ROWS=[];FLAGS=[];RESETW=[];LBLS=[];LASTN=0;
+chart.data.datasets.forEach(d=>d.data=[]);chart.update();
+['mAvgC','mAvgP','mGap','mInt','spendV'].forEach(id=>document.getElementById(id).textContent='n/a');
+['mGapTot','mAct','saveV'].forEach(id=>document.getElementById(id).textContent='');
+document.getElementById('baseRows').innerHTML='';
+return;}
+const p=params(),r=simulate(DATA,p);
+ROWS=r.rows;FLAGS=r.rows.map(x=>x.intFlag);RESETW=r.resetWeeks;
+LBLS=labelsFor(r.N);
+chart.options.scales.x.min=0.5;chart.options.scales.x.max=r.N+0.5;
+chart.data.datasets[0].data=r.rows.map((x,i)=>({x:i+1,y:x.base*(1+p.band/100)}));
+chart.data.datasets[1].data=r.rows.map((x,i)=>({x:i+1,y:x.base*(1-p.band/100)}));
+chart.data.datasets[2].data=r.rows.map((x,i)=>({x:i+1,y:x.m}));
+chart.data.datasets[3].data=r.rows.map((x,i)=>({x:i+1,y:x.active}));
+chart.data.datasets[4].data=r.events.filter(e=>e.type==='interim').map(e=>({x:e.i+1,y:r.rows[e.i].active}));
+chart.data.datasets[5].data=r.events.filter(e=>e.type==='remark').map(e=>({x:e.i+1,y:r.rows[e.i].active}));
+chart.data.datasets[6].data=r.events.filter(e=>e.type==='revert').map(e=>({x:e.i+1,y:r.rows[e.i].active}));
+chart.data.datasets[7].data=DAILY.map(d=>({x:1+(d.t-anchorDate().getTime())/(7*86400000),y:d.v}));
+chart.update();
+const gap=r.avgC-r.avgP,sign=gap<0?'-':'+';
+document.getElementById('mAvgC').textContent='$'+r.avgC.toFixed(2);
+document.getElementById('mAvgP').textContent='$'+r.avgP.toFixed(2);
+document.getElementById('mGap').textContent=sign+'$'+Math.abs(gap).toFixed(2);
+document.getElementById('mGapTot').textContent=sign+'$'+Math.abs(gap*r.N).toFixed(2)+' per carton cumulative';
+document.getElementById('mInt').textContent=r.intW+' of '+r.N;
+document.getElementById('mAct').textContent=r.trig+' triggers \u00B7 '+r.rem+' re-marks \u00B7 '+r.rev+' reverts \u00B7 '+r.resets+' resets';
+document.getElementById('bandOut').textContent=p.band+'%';
+if(r.N!==LASTN){rebuildRange(r.N);LASTN=r.N;}
+computeRange();
+}
+['band','reset','wr','wi','cin','cout','mode','disc','remark'].forEach(id=>document.getElementById(id).addEventListener('input',recompute));
+['vol','from','to'].forEach(id=>document.getElementById(id).addEventListener('input',computeRange));
+document.getElementById('form').addEventListener('input',function(){document.getElementById('disc').value=document.getElementById('form').value==='pct'?4:0.10;recompute();});
+document.getElementById('run').addEventListener('click',function(){
+const v=document.getElementById('paste').value.split(/[,\s]+/).map(parseFloat).filter(x=>!isNaN(x)&&x>0);
+const e=document.getElementById('err');
+if(v.length<8){e.textContent='Need 8+ prints (4 seed + 4 weeks)';return;}
+e.textContent='';DATA=v;REALF=v.map(()=>1);custom=true;recompute();});
+document.getElementById('samp').addEventListener('click',function(){loadCommodity(CURR);});
+document.getElementById('anchor').addEventListener('input',function(){LASTN=0;recompute();});
+document.getElementById('drun').addEventListener('click',function(){
+const lines=document.getElementById('dpaste').value.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+const out=[];const de=document.getElementById('derr');
+for(const ln of lines){const m=ln.split(/[\s,]+/);if(m.length<2)continue;
+const ds=m[0];const d=/^\d{4}-\d{2}-\d{2}$/.test(ds)?new Date(ds+'T00:00:00'):new Date(ds);
+const v=parseFloat(m[1]);
+if(!isNaN(d)&&!isNaN(v)&&v>0)out.push({t:d.getTime(),v:v});}
+if(!out.length){de.textContent='No valid date value pairs found';return;}
+de.textContent='';out.sort((a,b)=>a.t-b.t);DAILY=out;recompute();});
+document.getElementById('dclear').addEventListener('click',function(){DAILY=[];document.getElementById('derr').textContent='';recompute();});
+(function(){
+const sel=document.getElementById('comm');
+const keys=Object.keys(PROFILES);
+if(typeof USDA_DATA!=='undefined'){Object.keys(USDA_DATA).forEach(k=>{if(keys.indexOf(k)<0)keys.push(k);});}
+keys.forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=(PROFILES[k]&&PROFILES[k].label)||k;sel.appendChild(o);});
+sel.addEventListener('input',function(){loadCommodity(this.value);});
+loadCommodity('xl_roma');
+})();
+</script>
+</body>
+</html>
